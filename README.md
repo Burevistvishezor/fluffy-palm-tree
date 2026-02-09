@@ -14,6 +14,9 @@ Currently focusing on software development and building a strong C++ portfolio.
 - Basic software architecture
 - Unit testing (basic)
 - Git / GitHub
+## Persistence
+- SQLite3 database
+- Account data stored in `bank.db`
 
 Languages:
 - German — **B2**
