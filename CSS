@@ -1,0 +1,10 @@
+fluffy-palm-tree/
+├── README.md
+├── src/
+│   ├── main.cpp
+│   └── Bank.cpp
+├── include/
+│   └── Bank.h
+├── CMakeLists.txt
+└── tests/
+    └── BankTest.cpp
