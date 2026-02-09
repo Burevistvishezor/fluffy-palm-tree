@@ -1,0 +1,21 @@
+
+---
+
+### 2️⃣ CMakeLists.txt
+
+```cmake
+cmake_minimum_required(VERSION 3.10)
+project(FluffyPalmTree)
+
+# Используем C++17
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+# Указываем папки с заголовочными файлами
+include_directories(include)
+
+# Добавляем все исходные файлы из src
+file(GLOB SOURCES "src/*.cpp")
+
+# Создаем исполняемый файл
+add_executable(FluffyPalmTree ${SOURCES})
