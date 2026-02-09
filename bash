@@ -10,6 +10,8 @@ mkdir build
 cd build
 cmake ..
 make
+./FluffyPalmTree
+
 ./bank_app
 sqlite3 bank.db
 SELECT * FROM accounts;
