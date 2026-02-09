@@ -1,4 +1,10 @@
 
+## Сборка и запуск
+1. Клонируйте репозиторий:
+```bash
+git clone https://github.com/Burevistvishezor/fluffy-palm-tree.git
+cd fluffy-palm-tree
+
 
 mkdir build
 cd build
