@@ -1,0 +1,20 @@
+
+---
+
+## Build & Run
+
+### Requirements
+- C++17 compatible compiler (GCC / Clang)
+- CMake ≥ 3.10
+- Linux / macOS (Windows via WSL or MinGW possible)
+
+### Build instructions
+
+```bash
+git clone https://github.com/Burevistvishezor/fluffy-palm-tree.git
+cd fluffy-palm-tree
+
+mkdir build
+cd build
+cmake ..
+make
