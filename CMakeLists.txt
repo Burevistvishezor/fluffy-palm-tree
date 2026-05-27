@@ -1,86 +1,61 @@
+cmake_minimum_required(VERSION 3.15)
+project(fluffy-palm-tree)
 
-cmake_minimum_required(VERSION 3.10)
-project(CoreBankingSystem)
-
+# Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-include_directories(include)
+# Options
+option(ENABLE_TESTING "Enable testing" ON)
+option(ENABLE_COVERAGE "Enable code coverage" OFF)
 
-find_package(SQLite3 REQUIRED)
-include_directories(${SQLite3_INCLUDE_DIRS})
+# Set output directories
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
-add_executable(bank_app
-    main.cpp
-    src/Account.cpp
-    src/SavingsAccount.cpp
-    src/Transaction.cpp
-    src/Bank.cpp
-    src/DatabaseManager.cpp
+# Add source files
+file(GLOB_RECURSE SOURCES "src/*.cpp")
+file(GLOB_RECURSE HEADERS "src/*.h" "include/*.h")
+
+# Create main library
+add_library(${PROJECT_NAME}_lib ${SOURCES} ${HEADERS})
+target_include_directories(${PROJECT_NAME}_lib PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
 )
 
-target_link_libraries(bank_app ${SQLite3_LIBRARIES})
-include/DatabaseManager.h
-#ifndef DATABASEMANAGER_H
-#define DATABASEMANAGER_H
+# Add executable
+add_executable(${PROJECT_NAME} src/main.cpp)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}_lib)
 
-#include <string>
-#include <sqlite3.h>
-#include "Account.h"
+# Testing
+if(ENABLE_TESTING)
+  enable_testing()
+  find_package(GTest CONFIG QUIET)
+  
+  if(NOT GTest_FOUND)
+    message(STATUS "GTest not found, skipping tests")
+  else()
+    file(GLOB_RECURSE TEST_SOURCES "tests/*.cpp")
+    add_executable(${PROJECT_NAME}_tests ${TEST_SOURCES})
+    target_link_libraries(${PROJECT_NAME}_tests PRIVATE ${PROJECT_NAME}_lib GTest::gtest GTest::gtest_main)
+    add_test(NAME ${PROJECT_NAME}_tests COMMAND ${PROJECT_NAME}_tests)
+  endif()
+endif()
 
-class DatabaseManager {
-    sqlite3* db;
+# Code coverage
+if(ENABLE_COVERAGE)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(${PROJECT_NAME}_lib PRIVATE --coverage -fprofile-arcs -ftest-coverage)
+    target_link_options(${PROJECT_NAME}_lib PRIVATE --coverage)
+  endif()
+endif()
 
-public:
-    DatabaseManager(const std::string& dbName);
-    ~DatabaseManager();
-
-    void createTables();
-    void saveAccount(const Account& account);
-};
-
-#endif
-src/DatabaseManager.cpp
-#include "DatabaseManager.h"
-#include <iostream>
-
-DatabaseManager::DatabaseManager(const std::string& dbName) : db(nullptr) {
-    if (sqlite3_open(dbName.c_str(), &db) != SQLITE_OK) {
-        std::cerr << "Cannot open database\n";
-        db = nullptr;
-    }
-}
-
-DatabaseManager::~DatabaseManager() {
-    if (db)
-        sqlite3_close(db);
-}
-
-void DatabaseManager::createTables() {
-    const char* sql =
-        "CREATE TABLE IF NOT EXISTS accounts ("
-        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-        "owner TEXT,"
-        "balance REAL);";
-
-    char* errMsg = nullptr;
-    if (sqlite3_exec(db, sql, nullptr, nullptr, &errMsg) != SQLITE_OK) {
-        std::cerr << "SQL error: " << errMsg << std::endl;
-        sqlite3_free(errMsg);
-    }
-}
-
-void DatabaseManager::saveAccount(const Account& account) {
-    std::string sql =
-        "INSERT INTO accounts (owner, balance) VALUES ('" +
-        account.getOwner() + "', " +
-        std::to_string(account.getBalance()) + ");";
-
-    char* errMsg = nullptr;
-    if (sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &errMsg) != SQLITE_OK) {
-        std::cerr << "Insert error: " << errMsg << std::endl;
-        sqlite3_free(errMsg);
-    }
-}
-
-
+# Installation
+install(TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_lib
+  RUNTIME DESTINATION bin
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+)
+install(DIRECTORY include/ DESTINATION include)
