@@ -53,10 +53,11 @@ jobs:
 
     - name: Upload build artifacts
       if: success()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: build-${{ matrix.os }}-${{ matrix.compiler }}
         path: build/
+        retention-days: 5
 
   test-coverage:
     runs-on: ubuntu-latest
@@ -84,7 +85,7 @@ jobs:
         lcov --remove coverage.info '/usr/*' --output-file coverage.info
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         files: ./coverage.info
         fail_ci_if_error: false
@@ -133,7 +134,7 @@ jobs:
         cp -r build/lib/* release-artifacts/ || true
 
     - name: Upload release artifacts
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: release-artifacts/*
       env:
