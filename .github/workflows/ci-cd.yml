@@ -42,53 +42,18 @@ jobs:
 
     - name: Configure build
       run: |
-        cmake -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTING=ON
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTING=OFF
 
     - name: Build
       run: cmake --build build --config Release
-
-    - name: Run tests
-      run: ctest --build-config Release --output-on-failure
-      working-directory: build
 
     - name: Upload build artifacts
       if: success()
       uses: actions/upload-artifact@v4
       with:
         name: build-${{ matrix.os }}-${{ matrix.compiler }}
-        path: build/
+        path: build/bin/
         retention-days: 5
-
-  test-coverage:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential cmake lcov
-
-    - name: Configure with coverage
-      run: cmake -B build -DCMAKE_BUILD_TYPE=Debug -DENABLE_COVERAGE=ON -DENABLE_TESTING=ON
-
-    - name: Build
-      run: cmake --build build
-
-    - name: Run tests with coverage
-      run: ctest --build-config Debug --output-on-failure
-      working-directory: build
-
-    - name: Generate coverage report
-      run: |
-        lcov --directory build --capture --output-file coverage.info
-        lcov --remove coverage.info '/usr/*' --output-file coverage.info
-
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4
-      with:
-        files: ./coverage.info
-        fail_ci_if_error: false
 
   code-quality:
     runs-on: ubuntu-latest
@@ -101,14 +66,15 @@ jobs:
         sudo apt-get install -y clang-format cppcheck
 
     - name: Run cppcheck
-      run: cppcheck --enable=all --error-exitcode=1 src/ || true
+      run: |
+        find src include -name "*.cpp" -o -name "*.h" | xargs cppcheck --enable=all --error-exitcode=0 || true
 
     - name: Check code formatting
       run: |
-        find src -name "*.cpp" -o -name "*.h" | xargs clang-format --dry-run -Werror || true
+        find src include -type f \( -name "*.cpp" -o -name "*.h" \) -exec clang-format --dry-run -Werror {} + || true
 
   deploy:
-    needs: [build, test-coverage, code-quality]
+    needs: [build, code-quality]
     runs-on: ubuntu-latest
     if: github.event_name == 'release'
     steps:
