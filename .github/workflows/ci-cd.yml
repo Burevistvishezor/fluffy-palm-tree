@@ -1,0 +1,140 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  release:
+    types: [ created ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        compiler: [gcc, clang]
+        exclude:
+          - os: windows-latest
+            compiler: clang
+          - os: macos-latest
+            compiler: gcc
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Set up CMake
+      uses: lukka/get-cmake@latest
+
+    - name: Install dependencies (Ubuntu)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake
+
+    - name: Install dependencies (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        brew install cmake
+
+    - name: Configure build
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTING=ON
+
+    - name: Build
+      run: cmake --build build --config Release
+
+    - name: Run tests
+      run: ctest --build-config Release --output-on-failure
+      working-directory: build
+
+    - name: Upload build artifacts
+      if: success()
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-${{ matrix.os }}-${{ matrix.compiler }}
+        path: build/
+
+  test-coverage:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake lcov
+
+    - name: Configure with coverage
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Debug -DENABLE_COVERAGE=ON -DENABLE_TESTING=ON
+
+    - name: Build
+      run: cmake --build build
+
+    - name: Run tests with coverage
+      run: ctest --build-config Debug --output-on-failure
+      working-directory: build
+
+    - name: Generate coverage report
+      run: |
+        lcov --directory build --capture --output-file coverage.info
+        lcov --remove coverage.info '/usr/*' --output-file coverage.info
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        files: ./coverage.info
+        fail_ci_if_error: false
+
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang-format cppcheck
+
+    - name: Run cppcheck
+      run: cppcheck --enable=all --error-exitcode=1 src/ || true
+
+    - name: Check code formatting
+      run: |
+        find src -name "*.cpp" -o -name "*.h" | xargs clang-format --dry-run -Werror || true
+
+  deploy:
+    needs: [build, test-coverage, code-quality]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up CMake
+      uses: lukka/get-cmake@latest
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake
+
+    - name: Build release
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Release
+        cmake --build build --config Release
+
+    - name: Create release artifacts
+      run: |
+        mkdir -p release-artifacts
+        cp -r build/bin/* release-artifacts/ || true
+        cp -r build/lib/* release-artifacts/ || true
+
+    - name: Upload release artifacts
+      uses: softprops/action-gh-release@v1
+      with:
+        files: release-artifacts/*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
